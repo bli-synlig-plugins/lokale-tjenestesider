@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.zip
+olimb-ostfold-tjenester.json
+import-vestlandet.json

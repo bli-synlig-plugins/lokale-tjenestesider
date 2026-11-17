@@ -1,0 +1,120 @@
+.lts-default {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+}
+
+.lts-list,
+.lts-hours {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+}
+
+.lts-list li,
+.lts-hours li {
+    margin: 0 0 0.5rem;
+}
+
+.lts-hours li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 22rem;
+}
+
+.lts-hours--summary li {
+    display: block;
+    max-width: none;
+}
+
+.lts-contact,
+.lts-faq,
+.lts-pris {
+    margin: 0 0 1.5rem;
+}
+
+.lts-faq dt {
+    font-weight: 700;
+}
+
+.lts-faq dd {
+    margin: 0 0 1rem;
+}
+
+.lts-placeholder {
+    display: inline-block;
+    padding: 0.2rem 0.45rem;
+    border: 1px dashed currentColor;
+    opacity: 0.7;
+}
+
+.lts-ingress {
+    font-size: 1.15em;
+}
+
+.lts-place-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.lts-bilde-frame {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.lts-bilde-frame.has-ratio {
+    padding-top: var(--lts-img-height);
+}
+
+.lts-bilde-frame.has-ratio .lts-place-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+}
+
+.lts-pris-linje {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.9em;
+}
+
+.lts-sok__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.lts-sok__input,
+.lts-sok__fylke {
+    flex: 1 1 12rem;
+}
+
+.lts-sok__count {
+    margin: 0.75rem 0 0;
+}
+
+.lts-sok__list {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    max-height: 22rem;
+    overflow: auto;
+}
+
+.lts-sok__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    text-decoration: none;
+}
+
+.lts-sok__item.is-hidden {
+    display: none;
+}
