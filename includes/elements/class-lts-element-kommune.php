@@ -36,7 +36,7 @@ class LTS_Element_Kommune
         self::add('lts_apningstider', __('Åpningstider', 'lokale-tjenestesider'), self::hours_options());
         self::add('lts_kontaktinfo', __('Kontaktinformasjon', 'lokale-tjenestesider'), self::contact_info_options());
         self::add('lts_kontaktknapp', __('Kontaktknapp', 'lokale-tjenestesider'), self::contact_button_options());
-        self::add('lts_kontaktpersoner', __('Kontaktpersoner', 'lokale-tjenestesider'), LTS_Elements::box_options());
+        self::add('lts_kontaktpersoner', __('Kontaktpersoner', 'lokale-tjenestesider'), self::people_options());
         self::add('lts_skjema', __('Skjema', 'lokale-tjenestesider'), self::form_options());
         self::add('lts_bilde', __('Bilde', 'lokale-tjenestesider'), self::image_options());
         self::add('lts_fylke_innhold', __('Fylkesinnhold', 'lokale-tjenestesider'), self::block_options());
@@ -296,12 +296,7 @@ class LTS_Element_Kommune
      */
     public static function locator_people($atts): string
     {
-        $parsed = LTS_Elements::parse(array(
-            'heading' => '',
-            'color' => '',
-            'class' => '',
-            'id' => '',
-        ), $atts);
+        $parsed = LTS_Elements::parse(self::people_parse_defaults(), $atts);
         $fylke = LTS_Context::current_fylke();
         if (!$fylke instanceof WP_Post || !shortcode_exists('store_locator__employees')) {
             return LTS_Elements::wrap('div', $parsed, 'lts-kontaktpersoner', LTS_Elements::placeholder(__('Kontaktpersoner', 'lokale-tjenestesider')));
@@ -318,7 +313,7 @@ class LTS_Element_Kommune
             return LTS_Elements::wrap('div', $parsed, 'lts-kontaktpersoner', LTS_Elements::placeholder(__('Kontaktpersoner', 'lokale-tjenestesider')));
         }
 
-        $shortcode = '[store_locator__employees show="filter" query_1_key="employee:fylke" query_1_compare="is" query_1_value_employee-fylke="' . implode(',', $tokens) . '"' . self::people_filter_attrs() . ']';
+        $shortcode = '[store_locator__employees show="filter" query_1_key="employee:fylke" query_1_compare="is" query_1_value_employee-fylke="' . implode(',', $tokens) . '"' . self::people_filter_attrs() . self::people_view_attrs($parsed) . ']';
         $html = do_shortcode($shortcode);
         if (trim($html) === '') {
             return LTS_Elements::wrap('div', $parsed, 'lts-kontaktpersoner', LTS_Elements::placeholder(__('Kontaktpersoner', 'lokale-tjenestesider')));
@@ -659,6 +654,191 @@ class LTS_Element_Kommune
         $attr = sanitize_key(str_replace(':', '-', $source));
 
         return ' query_2_key="' . $source . '" query_2_compare="is" query_2_value_' . $attr . '="' . $filter['value'] . '"';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function people_parse_defaults(): array
+    {
+        return array(
+            'heading' => '',
+            'color' => '',
+            'class' => '',
+            'id' => '',
+            'columns' => '4',
+            'columns__md' => '',
+            'columns__sm' => '',
+            'show_image' => 'true',
+            'show_image__md' => '',
+            'show_image__sm' => '',
+            'image_placement' => 'right',
+            'image_placement__md' => '',
+            'image_placement__sm' => '',
+            'image_radius' => '20px',
+            'image_radius__md' => '',
+            'image_radius__sm' => '',
+            'border_radius' => '',
+            'border_radius__md' => '',
+            'border_radius__sm' => '',
+            'image_height' => '',
+            'image_height__md' => '',
+            'image_height__sm' => '',
+            'image_width' => '100%',
+            'image_width__md' => '',
+            'image_width__sm' => '',
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function people_options(): array
+    {
+        $options = LTS_Elements::box_options();
+        $image = 'show_image != "false"';
+        $options['view_options'] = array(
+            'type' => 'group',
+            'heading' => __('Visning', 'lokale-tjenestesider'),
+            'options' => array(
+                'columns' => self::people_select(__('Kolonner', 'lokale-tjenestesider'), '4', array(
+                    '1' => '1',
+                    '2' => '2',
+                    '3' => '3',
+                    '4' => '4',
+                    '5' => '5',
+                    '6' => '6',
+                )),
+                'show_image' => self::people_select(__('Vis profilbilde', 'lokale-tjenestesider'), 'true', array(
+                    'true' => __('Ja', 'lokale-tjenestesider'),
+                    'false' => __('Nei', 'lokale-tjenestesider'),
+                )),
+                'image_placement' => self::people_select(__('Bildeplassering', 'lokale-tjenestesider'), 'right', array(
+                    'top' => __('Topp', 'lokale-tjenestesider'),
+                    'bottom' => __('Bunn', 'lokale-tjenestesider'),
+                    'left' => __('Venstre', 'lokale-tjenestesider'),
+                    'right' => __('Høyre', 'lokale-tjenestesider'),
+                ), $image),
+                'image_radius' => self::people_text(__('Profilbilde-radius', 'lokale-tjenestesider'), '20px', '20px', $image),
+                'border_radius' => self::people_text(__('Kortradius', 'lokale-tjenestesider'), '', '12px', ''),
+                'image_height' => self::people_select(__('Bildehøyde', 'lokale-tjenestesider'), '', array(
+                    '' => __('Auto', 'lokale-tjenestesider'),
+                    '56.25%' => '16:9',
+                    '75%' => '4:3',
+                    '100%' => '1:1',
+                    '133%' => '3:4',
+                    '177%' => '9:16',
+                ), $image),
+                'image_width' => array(
+                    'type' => 'scrubfield',
+                    'heading' => __('Bildebredde', 'lokale-tjenestesider'),
+                    'default' => '100%',
+                    'full_width' => true,
+                    'responsive' => true,
+                    'conditions' => $image,
+                ),
+            ),
+        );
+
+        return $options;
+    }
+
+    /**
+     * @param array<string, string> $choices
+     * @return array<string, mixed>
+     */
+    private static function people_select(string $heading, string $default, array $choices, string $conditions = ''): array
+    {
+        $option = array(
+            'type' => 'select',
+            'heading' => $heading,
+            'default' => $default,
+            'full_width' => true,
+            'responsive' => true,
+            'options' => $choices,
+        );
+        if ($conditions !== '') {
+            $option['conditions'] = $conditions;
+        }
+
+        return $option;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function people_text(string $heading, string $default, string $placeholder, string $conditions): array
+    {
+        $option = array(
+            'type' => 'textfield',
+            'heading' => $heading,
+            'default' => $default,
+            'placeholder' => $placeholder,
+            'full_width' => true,
+            'responsive' => true,
+        );
+        if ($conditions !== '') {
+            $option['conditions'] = $conditions;
+        }
+
+        return $option;
+    }
+
+    /**
+     * @param array<string, string> $parsed
+     */
+    private static function people_view_attrs(array $parsed): string
+    {
+        $attrs = '';
+        foreach (array('columns', 'show_image', 'image_placement', 'image_radius', 'border_radius', 'image_height', 'image_width') as $name) {
+            foreach (array('', '__md', '__sm') as $suffix) {
+                $key = $name . $suffix;
+                if (!isset($parsed[$key])) {
+                    continue;
+                }
+                $value = self::people_view_value($name, (string) $parsed[$key]);
+                if ($value === '') {
+                    continue;
+                }
+                $attrs .= ' ' . $key . '="' . $value . '"';
+            }
+        }
+
+        return $attrs;
+    }
+
+    private static function people_view_value(string $name, string $value): string
+    {
+        $value = trim($value);
+        if ($name === 'columns') {
+            $count = absint($value);
+            return ($count >= 1 && $count <= 6) ? (string) $count : '';
+        }
+        if ($name === 'show_image') {
+            return in_array($value, array('true', 'false'), true) ? $value : '';
+        }
+        if ($name === 'image_placement') {
+            return in_array($value, array('top', 'bottom', 'left', 'right'), true) ? $value : '';
+        }
+        if ($name === 'image_height') {
+            return in_array($value, array('56.25%', '75%', '100%', '133%', '177%'), true) ? $value : '';
+        }
+        if ($name === 'image_width') {
+            return preg_match('/^\d+(?:\.\d+)?(?:px|%|rem|em|vh|vw)?$/', $value) ? $value : '';
+        }
+
+        $value = strtolower(preg_replace('/\s+/', '', $value) ?? '');
+        if ($value === '0') {
+            return '0';
+        }
+        if (preg_match('/^-?\d+(?:\.\d+)?$/', $value)) {
+            return $value . 'px';
+        }
+        if (preg_match('/^-?\d+(?:\.\d+)?(?:px|%|rem|em|vh|vw)$/', $value)) {
+            return $value;
+        }
+
+        return '';
     }
 
     /**
@@ -1077,7 +1257,7 @@ class LTS_Element_Kommune
         if ($style !== '') {
             $attrs .= ' style="' . $style . '"';
         }
-        $color = self::one_of((string) $parsed['color'], array('primary', 'secondary', 'alert', 'success', 'white'));
+        $color = self::button_color((string) $parsed['color']);
         if ($color !== '') {
             $attrs .= ' color="' . $color . '"';
         }
@@ -1112,6 +1292,18 @@ class LTS_Element_Kommune
     private static function one_of(string $value, array $allowed): string
     {
         return in_array($value, $allowed, true) ? $value : '';
+    }
+
+    private static function button_color(string $value): string
+    {
+        if (self::one_of($value, array('primary', 'secondary', 'alert', 'success', 'white')) !== '') {
+            return $value;
+        }
+        if (preg_match('/^fef-btn-[a-z0-9]+(?:-[a-z0-9]+)*$/', $value)) {
+            return $value;
+        }
+
+        return '';
     }
 
     private static function class_list(string $value): string
