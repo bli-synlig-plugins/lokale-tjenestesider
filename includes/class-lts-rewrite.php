@@ -305,6 +305,17 @@ class LTS_Rewrite
         foreach ($extra as $crumb) {
             $items[] = $crumb;
         }
+        if (
+            is_array($current)
+            && isset($context['side'], $context['kommune'])
+            && $context['side'] instanceof WP_Post
+            && $context['kommune'] instanceof WP_Post
+        ) {
+            $name = get_the_title($context['kommune']);
+            if ($name !== '') {
+                $current['label'] = $name;
+            }
+        }
         $items[] = $current;
 
         return $items;

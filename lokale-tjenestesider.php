@@ -3,7 +3,7 @@
  * Plugin Name:       Lokale tjenestesider
  * Plugin URI:        https://kodekassa.no/plugins/lokale-tjenestesider
  * Description:       Lokale landingssider for tjenester og kommuner, med dynamiske URL-er, SEO og JSON-import.
- * Version:           1.0.4
+ * Version:           1.0.5
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Benjamin Pedersen
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LTS_VERSION', '1.0.4');
+define('LTS_VERSION', '1.0.5');
 define('LTS_FILE', __FILE__);
 define('LTS_DIR', plugin_dir_path(__FILE__));
 define('LTS_URL', plugin_dir_url(__FILE__));
