@@ -308,6 +308,24 @@ class LTS_Repository
     /**
      * @return string[]
      */
+    public static function invalid_postnummer(string $raw): array
+    {
+        $parts = preg_split('/\s*,\s*|\R/', $raw) ?: array();
+        $invalid = array();
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            if ($part === '' || preg_match('/^\d{4}$/', $part)) {
+                continue;
+            }
+            $invalid[] = $part;
+        }
+
+        return $invalid;
+    }
+
+    /**
+     * @return string[]
+     */
     public static function postnummer(int $post_id): array
     {
         $stored = get_post_meta($post_id, LTS_META_POSTNUMMER, true);

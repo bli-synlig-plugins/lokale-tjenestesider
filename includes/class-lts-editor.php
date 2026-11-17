@@ -84,7 +84,7 @@ class LTS_Editor
         echo '<div class="lts-dirty" hidden>';
         echo '<span>' . esc_html__('Du har ulagrede endringer', 'lokale-tjenestesider') . '</span>';
         echo '<button type="button" class="lts-btn" data-lts-reset>' . esc_html__('Tilbakestill', 'lokale-tjenestesider') . '</button>';
-        echo '<button type="button" class="lts-btn is-primary" data-lts-save>' . esc_html__('Lagre endringer', 'lokale-tjenestesider') . '</button>';
+        echo '<button type="button" class="lts-btn is-primary" data-lts-save>' . esc_html(self::save_label($post, false)) . '</button>';
         echo '</div>';
         echo '<div class="lts-toast" hidden role="status"></div>';
         echo '</div>';
@@ -105,6 +105,19 @@ class LTS_Editor
 
         $_POST['lts_meta_nonce'] = wp_create_nonce('lts_save_meta');
         $_POST['post_ID'] = (string) $post_id;
+
+        if ($post->post_type === LTS_KOMMUNE && isset($_POST['lts_postnummer'])) {
+            $invalid = LTS_Repository::invalid_postnummer((string) wp_unslash($_POST['lts_postnummer']));
+            if ($invalid !== array()) {
+                wp_send_json_error(array(
+                    'message' => sprintf(
+                        /* translators: %s: invalid postal codes */
+                        __('Ugyldige postnumre: %s. Hvert nummer må være fire siffer.', 'lokale-tjenestesider'),
+                        implode(', ', $invalid)
+                    ),
+                ), 400);
+            }
+        }
 
         $title = isset($_POST['lts_title']) ? sanitize_text_field(wp_unslash($_POST['lts_title'])) : '';
         $update = array(
@@ -270,7 +283,7 @@ class LTS_Editor
         echo '<span class="lts-h">' . esc_html__('Brukes når en tjeneste ikke har egen lokal tekst.', 'lokale-tjenestesider') . '</span></label>';
 
         $codes = LTS_Repository::postnummer($post->ID);
-        echo '<label class="lts-field"><span>' . esc_html__('Postnummer', 'lokale-tjenestesider') . '</span>';
+        echo '<label class="lts-field"><span>' . esc_html__('Postnumre', 'lokale-tjenestesider') . '</span>';
         echo '<textarea name="lts_postnummer" rows="6">' . esc_textarea(implode("\n", $codes)) . '</textarea>';
         echo '<span class="lts-h">' . esc_html__('Ett nummer per linje. Brukes i kommunesøket.', 'lokale-tjenestesider') . '</span></label>';
 
@@ -530,6 +543,10 @@ class LTS_Editor
             }
         }
         echo '</div>';
+        if (!$kommune) {
+            $create = admin_url('post-new.php?post_type=' . LTS_TJENESTE);
+            echo '<p class="lts-add-service"><a class="lts-btn" href="' . esc_url($create) . '">' . esc_html__('Legg til tjeneste', 'lokale-tjenestesider') . '</a></p>';
+        }
     }
 
     /**
@@ -542,7 +559,16 @@ class LTS_Editor
         echo '<div class="lts-offer lts-service" data-slug="' . esc_attr($slug) . '" data-title="' . esc_attr($title) . '" data-base="' . esc_attr(LTS_Repository::service_base($service)) . '">';
         echo '<div class="lts-service-head">';
         echo '<label class="lts-switch"><input type="checkbox" data-lts-offer name="lts_offer[' . esc_attr($slug) . '][on]" value="1" ' . checked($on, true, false) . '><span></span></label>';
-        echo '<span class="lts-service-name">' . esc_html($title) . '</span>';
+        if ($kommune) {
+            echo '<span class="lts-service-name">' . esc_html($title) . '</span>';
+        } else {
+            $edit = get_edit_post_link($service->ID, 'raw');
+            if (is_string($edit) && $edit !== '') {
+                echo '<a class="lts-service-name" href="' . esc_url($edit) . '">' . esc_html($title) . '</a>';
+            } else {
+                echo '<span class="lts-service-name">' . esc_html($title) . '</span>';
+            }
+        }
         if ($kommune) {
             echo '<span class="lts-tag" data-lts-price-pill></span>';
         }
@@ -711,7 +737,7 @@ class LTS_Editor
     private static function aside(WP_Post $post): void
     {
         $status = $post->post_status;
-        $published = $status === 'publish' || $status === 'private';
+        $select_publish = $status === 'publish' || $status === 'private' || $status === 'auto-draft';
         $preview = self::preview_url($post);
         $trash = get_delete_post_link($post->ID);
 
@@ -719,11 +745,12 @@ class LTS_Editor
         echo '<section class="lts-card">';
         echo '<h2>' . esc_html__('Publiser', 'lokale-tjenestesider') . '</h2>';
         echo '<label class="lts-field lts-slug" for="lts-slug"><span>' . esc_html__('Slug', 'lokale-tjenestesider') . '</span>';
+        echo '<input type="hidden" id="lts-slug-auto" name="lts_slug_auto" value="' . esc_attr($post->post_name === '' ? '1' : '0') . '">';
         echo '<input type="text" id="lts-slug" name="lts_slug" value="' . esc_attr($post->post_name) . '" spellcheck="false" autocomplete="off"></label>';
         echo '<label class="lts-field"><span>' . esc_html__('Status', 'lokale-tjenestesider') . '</span>';
         echo '<select name="lts_status" id="lts-status">';
-        echo '<option value="publish" ' . selected($published, true, false) . '>' . esc_html__('Publisert', 'lokale-tjenestesider') . '</option>';
-        echo '<option value="draft" ' . selected($published, false, false) . '>' . esc_html__('Kladd', 'lokale-tjenestesider') . '</option>';
+        echo '<option value="publish" ' . selected($select_publish, true, false) . '>' . esc_html__('Publisert', 'lokale-tjenestesider') . '</option>';
+        echo '<option value="draft" ' . selected($select_publish, false, false) . '>' . esc_html__('Kladd', 'lokale-tjenestesider') . '</option>';
         echo '</select></label>';
         echo '<label class="lts-field"><span>' . esc_html__('Synlighet', 'lokale-tjenestesider') . '</span>';
         echo '<select name="lts_visibility" id="lts-visibility">';
@@ -733,7 +760,7 @@ class LTS_Editor
         echo '<p class="lts-date"><span>' . esc_html__('Dato', 'lokale-tjenestesider') . '</span> <strong id="lts-date">' . esc_html(self::date_label($post)) . '</strong></p>';
         echo '<div class="lts-actions">';
         echo '<a class="lts-btn" id="lts-preview" target="_blank" rel="noopener noreferrer" href="' . esc_url($preview) . '"' . ($preview === '' ? ' aria-disabled="true" tabindex="-1"' : '') . '>' . esc_html__('Forhåndsvis', 'lokale-tjenestesider') . '</a>';
-        echo '<button type="button" class="lts-btn is-primary" data-lts-save>' . esc_html__('Oppdater', 'lokale-tjenestesider') . '</button>';
+        echo '<button type="button" class="lts-btn is-primary" data-lts-save>' . esc_html(self::save_label($post, true)) . '</button>';
         echo '</div>';
         if (is_string($trash) && $trash !== '') {
             echo '<a class="lts-trash" href="' . esc_url($trash) . '">' . esc_html__('Flytt til papirkurven', 'lokale-tjenestesider') . '</a>';
@@ -852,7 +879,11 @@ class LTS_Editor
                 'remove' => __('Fjern', 'lokale-tjenestesider'),
                 'addKommune' => __('Legg til kommune', 'lokale-tjenestesider'),
                 'trashConfirm' => __('Flytte til papirkurven?', 'lokale-tjenestesider'),
+                'publish' => __('Publiser', 'lokale-tjenestesider'),
+                'update' => __('Oppdater', 'lokale-tjenestesider'),
+                'save' => __('Lagre endringer', 'lokale-tjenestesider'),
             ),
+            'storedStatus' => $post->post_status,
         );
     }
 
@@ -915,37 +946,67 @@ class LTS_Editor
         return $visibility === 'private' ? 'private' : 'publish';
     }
 
+    private static function save_label(WP_Post $post, bool $side): string
+    {
+        if ($post->post_status === 'auto-draft') {
+            return __('Publiser', 'lokale-tjenestesider');
+        }
+
+        return $side ? __('Oppdater', 'lokale-tjenestesider') : __('Lagre endringer', 'lokale-tjenestesider');
+    }
+
     /**
      * @param array<string, mixed> $update
      */
     private static function slug_update(WP_Post $post, array &$update): string
     {
-        if (!isset($_POST['lts_slug'])) {
-            return '';
+        $title = isset($update['post_title']) ? (string) $update['post_title'] : (string) $post->post_title;
+        $slug = isset($_POST['lts_slug']) ? sanitize_title(wp_unslash((string) $_POST['lts_slug'])) : '';
+        $auto = isset($_POST['lts_slug_auto']) && (string) wp_unslash($_POST['lts_slug_auto']) === '1';
+        if ($slug === '') {
+            $slug = sanitize_title($title);
+            $auto = true;
         }
-
-        $slug = sanitize_title(wp_unslash((string) $_POST['lts_slug']));
         if ($slug === '' || !LTS_Repository::is_slug($slug)) {
             return __('Slug må være små bokstaver, tall og bindestrek.', 'lokale-tjenestesider');
         }
-        if ($slug === $post->post_name) {
-            return '';
-        }
-
-        $existing = LTS_Repository::by_slug($post->post_type, $slug, array('publish', 'draft', 'pending', 'private', 'future', 'trash'));
-        $same_type = $existing instanceof WP_Post && (int) $existing->ID !== (int) $post->ID;
-        $public_conflict = $post->post_type === LTS_TJENESTE && LTS_Repository::slug_conflicts($slug, (int) $post->ID);
-        if ($same_type || $public_conflict) {
+        if ($auto) {
+            $slug = self::unique_slug($post, $slug);
+        } elseif (self::slug_taken($post, $slug)) {
             return sprintf(
                 /* translators: %s: slug */
                 __('Slug «%s» er allerede i bruk.', 'lokale-tjenestesider'),
                 $slug
             );
         }
+        if ($slug === $post->post_name) {
+            return '';
+        }
 
         $update['post_name'] = $slug;
 
         return '';
+    }
+
+    private static function unique_slug(WP_Post $post, string $slug): string
+    {
+        $candidate = $slug;
+        $index = 2;
+        while (self::slug_taken($post, $candidate) && $index < 100) {
+            $candidate = $slug . '-' . $index;
+            $index++;
+        }
+
+        return $candidate;
+    }
+
+    private static function slug_taken(WP_Post $post, string $slug): bool
+    {
+        $existing = LTS_Repository::by_slug($post->post_type, $slug, array('publish', 'draft', 'pending', 'private', 'future', 'trash'));
+        $same_type = $existing instanceof WP_Post && (int) $existing->ID !== (int) $post->ID;
+        $public_conflict = $post->post_type === LTS_TJENESTE && LTS_Repository::slug_conflicts($slug, (int) $post->ID);
+
+        return $same_type || $public_conflict;
     }
 
     private static function date_label(WP_Post $post): string

@@ -43,6 +43,58 @@
             .replace(/^-|-$/g, '');
     }
 
+    function writeSlugNote(slug) {
+        var note = document.getElementById('lts-slug-note');
+        if (!note) {
+            return;
+        }
+        note.textContent = slug;
+        if (note.parentNode) {
+            note.parentNode.hidden = slug === '';
+        }
+    }
+
+    function syncSlug(event) {
+        var slugInput = document.getElementById('lts-slug');
+        var auto = document.getElementById('lts-slug-auto');
+        if (!slugInput || !auto) {
+            return;
+        }
+        var target = event && event.target ? event.target : null;
+        if (target === slugInput) {
+            if (slugInput.value.trim() === '') {
+                auto.value = '1';
+                slugInput.value = slugify(placeTitle());
+            } else {
+                auto.value = '0';
+            }
+        } else if (auto.value === '1' && target === titleInput) {
+            slugInput.value = slugify(placeTitle());
+        }
+        writeSlugNote(slugInput.value);
+    }
+
+    function syncSaveLabels() {
+        var status = document.getElementById('lts-status');
+        var stored = cfg.storedStatus || '';
+        var live = stored === 'publish' || stored === 'private';
+        var publishing = !!(status && status.value === 'publish' && !live);
+        var buttons = root.querySelectorAll('[data-lts-save]');
+        for (var index = 0; index < buttons.length; index++) {
+            var side = !!buttons[index].closest('.lts-editor-side');
+            buttons[index].textContent = publishing ? cfg.i18n.publish : (side ? cfg.i18n.update : cfg.i18n.save);
+        }
+    }
+
+    function silenceEditorGuard() {
+        if (window.jQuery) {
+            window.jQuery(window).off('beforeunload.edit-post');
+        }
+        if (window.wp && window.wp.autosave && window.wp.autosave.server && typeof window.wp.autosave.server.suspend === 'function') {
+            window.wp.autosave.server.suspend();
+        }
+    }
+
     function money(raw) {
         var normalized = String(raw).trim().replace(/\s/g, '').replace(',', '.');
         if (normalized === '' || isNaN(Number(normalized))) {
@@ -681,6 +733,12 @@
         var buttons = root.querySelectorAll('[data-lts-save]');
         for (var index = 0; index < buttons.length; index++) {
             buttons[index].disabled = busy;
+            buttons[index].classList.toggle('is-busy', busy);
+            if (busy) {
+                buttons[index].setAttribute('aria-busy', 'true');
+            } else {
+                buttons[index].removeAttribute('aria-busy');
+            }
         }
     }
 
@@ -726,6 +784,12 @@
             return;
         }
         syncTitle();
+        var autoSlug = document.getElementById('lts-slug-auto');
+        var slugField = document.getElementById('lts-slug');
+        if (autoSlug && slugField && autoSlug.value === '1') {
+            slugField.value = slugify(placeTitle());
+            writeSlugNote(slugField.value);
+        }
         refresh();
         var data = new FormData(form);
         data.set('action', 'lts_save_editor');
@@ -768,17 +832,20 @@
             if (json.data.slug) {
                 cfg.placeSlug = json.data.slug;
                 var slugInput = document.getElementById('lts-slug');
-                var slugNote = document.getElementById('lts-slug-note');
+                var slugAuto = document.getElementById('lts-slug-auto');
                 if (slugInput) {
                     slugInput.value = json.data.slug;
                 }
-                if (slugNote) {
-                    slugNote.textContent = json.data.slug;
-                    if (slugNote.parentNode) {
-                        slugNote.parentNode.hidden = false;
-                    }
+                if (slugAuto) {
+                    slugAuto.value = '0';
                 }
+                writeSlugNote(json.data.slug);
             }
+            if (json.data.status) {
+                cfg.storedStatus = json.data.status;
+            }
+            syncSaveLabels();
+            silenceEditorGuard();
             setPreview(json.data.preview || '');
             updateLayouts(json.data.layouts);
             rememberServices();
@@ -818,6 +885,11 @@
         customHours = hoursMode() === 'custom' ? readHours() : null;
         refreshNearbyOptions();
         refresh();
+        var slugInput = document.getElementById('lts-slug');
+        if (slugInput) {
+            writeSlugNote(slugInput.value);
+        }
+        syncSaveLabels();
         mark();
     }
 
@@ -954,7 +1026,9 @@
             }
         }
         syncTitle();
+        syncSlug(event);
         refresh();
+        syncSaveLabels();
         mark();
     }
 
@@ -1121,6 +1195,7 @@
         event.preventDefault();
         event.returnValue = '';
     });
+    window.addEventListener('load', silenceEditorGuard);
 
     if (blocksBox) {
         var blockRows = blocksBox.querySelectorAll('.lts-block-row');
@@ -1133,6 +1208,7 @@
     customHours = hoursMode() === 'custom' ? readHours() : null;
     refreshNearbyOptions();
     refresh();
+    syncSaveLabels();
     remember();
     mark();
 }());
