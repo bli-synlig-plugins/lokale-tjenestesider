@@ -135,6 +135,7 @@ class LTS_Meta
             return;
         }
 
+        $previous = LTS_Repository::offered_slugs($post_id);
         $offered = self::offers_from_post(null);
         update_post_meta($post_id, LTS_META_SERVICES, $offered);
         update_post_meta($post_id, LTS_META_CONTACT, self::contact_from_post(false));
@@ -144,7 +145,7 @@ class LTS_Meta
         if (isset($_POST['lts_blocks_present'])) {
             update_post_meta($post_id, LTS_META_BLOCKS, self::blocks_from_post($offered));
         }
-        self::limit_kommune_offers($post_id, $offered);
+        self::limit_kommune_offers($post_id, $previous, $offered);
     }
 
     public static function save_kommune(int $post_id): void
@@ -785,30 +786,50 @@ class LTS_Meta
     }
 
     /**
+     * @param string[] $previous
      * @param string[] $offered
      */
-    private static function limit_kommune_offers(int $fylke_id, array $offered): void
+    private static function limit_kommune_offers(int $fylke_id, array $previous, array $offered): void
     {
+        $added = array_values(array_diff($offered, $previous));
+        $removed = array_values(array_diff($previous, $offered));
+        if ($added === array() && $removed === array()) {
+            return;
+        }
+
         $kommuner = get_posts(array(
             'post_type' => LTS_KOMMUNE,
             'post_status' => array('publish', 'draft', 'pending', 'private'),
-            'posts_per_page' => 500,
+            'posts_per_page' => -1,
             'meta_key' => LTS_META_FYLKE,
             'meta_value' => (string) $fylke_id,
             'suppress_filters' => true,
         ));
         foreach ($kommuner as $kommune) {
+            if (!$kommune instanceof WP_Post) {
+                continue;
+            }
             $current = LTS_Repository::offered_slugs($kommune->ID);
-            $next = array_values(array_intersect($current, $offered));
-            update_post_meta($kommune->ID, LTS_META_SERVICES, $next);
-            foreach ($current as $slug) {
-                if (in_array($slug, $next, true)) {
-                    continue;
-                }
+            $next = $current;
+            foreach ($removed as $slug) {
+                $next = array_values(array_diff($next, array($slug)));
                 $service = LTS_Repository::by_slug(LTS_TJENESTE, $slug);
                 if ($service instanceof WP_Post) {
                     self::set_side_status($service->ID, $kommune->ID, 'draft');
                 }
+            }
+            foreach ($added as $slug) {
+                $service = LTS_Repository::by_slug(LTS_TJENESTE, $slug);
+                if (!$service instanceof WP_Post) {
+                    continue;
+                }
+                if (!in_array($slug, $next, true)) {
+                    $next[] = $slug;
+                }
+                self::ensure_side($service, $kommune->ID, 'publish');
+            }
+            if ($next !== $current) {
+                update_post_meta($kommune->ID, LTS_META_SERVICES, array_values($next));
             }
         }
     }

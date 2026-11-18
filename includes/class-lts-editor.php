@@ -544,6 +544,7 @@ class LTS_Editor
         }
         echo '</div>';
         if (!$kommune) {
+            echo '<p class="lts-sub">' . esc_html__('På og av gjelder alle kommuner i fylket. En kommune kan skrus av etterpå.', 'lokale-tjenestesider') . '</p>';
             $create = admin_url('post-new.php?post_type=' . LTS_TJENESTE);
             echo '<p class="lts-add-service"><a class="lts-btn" href="' . esc_url($create) . '">' . esc_html__('Legg til tjeneste', 'lokale-tjenestesider') . '</a></p>';
         }
