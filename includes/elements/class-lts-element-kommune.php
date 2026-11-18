@@ -313,7 +313,9 @@ class LTS_Element_Kommune
             return LTS_Elements::wrap('div', $parsed, 'lts-kontaktpersoner', LTS_Elements::placeholder(__('Kontaktpersoner', 'lokale-tjenestesider')));
         }
 
-        $shortcode = '[store_locator__employees show="filter" query_1_key="employee:fylke" query_1_compare="is" query_1_value_employee-fylke="' . implode(',', $tokens) . '"' . self::people_filter_attrs() . self::people_view_attrs($parsed) . ']';
+        $source = self::fylke_source(isset($parsed['fylke_source']) ? (string) $parsed['fylke_source'] : '');
+        $attr = sanitize_key(str_replace(':', '-', $source));
+        $shortcode = '[store_locator__employees show="filter" query_1_key="' . $source . '" query_1_compare="is" query_1_value_' . $attr . '="' . implode(',', $tokens) . '"' . self::people_filter_attrs() . self::people_view_attrs($parsed) . ']';
         $html = do_shortcode($shortcode);
         if (trim($html) === '') {
             return LTS_Elements::wrap('div', $parsed, 'lts-kontaktpersoner', LTS_Elements::placeholder(__('Kontaktpersoner', 'lokale-tjenestesider')));
@@ -635,6 +637,49 @@ class LTS_Element_Kommune
         return '';
     }
 
+    /**
+     * @return array<string, string>
+     */
+    private static function fylke_sources(): array
+    {
+        $sources = array(
+            'employee:fylke' => __('Ansatt: Fylke', 'lokale-tjenestesider'),
+        );
+        if (!class_exists('\\StoreLocator\\Contacts\\EmployeeFilters')) {
+            return $sources;
+        }
+
+        $options = \StoreLocator\Contacts\EmployeeFilters::query_ux_options();
+        $keys = isset($options['query_1_key']['options']) && is_array($options['query_1_key']['options'])
+            ? $options['query_1_key']['options']
+            : array();
+        foreach ($keys as $source => $label) {
+            $source = (string) $source;
+            if ($source === '' || !is_string($label) || $label === '') {
+                continue;
+            }
+            if (!preg_match('/^(?:position|department|(?:employee|department):[a-z0-9_-]+)$/', $source)) {
+                continue;
+            }
+            $sources[$source] = $label;
+        }
+        if (!isset($sources['employee:fylke'])) {
+            $sources = array('employee:fylke' => __('Ansatt: Fylke', 'lokale-tjenestesider')) + $sources;
+        }
+
+        return $sources;
+    }
+
+    private static function fylke_source(string $value): string
+    {
+        $sources = self::fylke_sources();
+        if (isset($sources[$value])) {
+            return $value;
+        }
+
+        return 'employee:fylke';
+    }
+
     private static function people_filter_attrs(): string
     {
         $filter = LTS_Repository::people_filter(LTS_Context::current_tjeneste());
@@ -687,6 +732,7 @@ class LTS_Element_Kommune
             'image_width' => '100%',
             'image_width__md' => '',
             'image_width__sm' => '',
+            'fylke_source' => 'employee:fylke',
         );
     }
 
@@ -701,6 +747,13 @@ class LTS_Element_Kommune
             'type' => 'group',
             'heading' => __('Visning', 'lokale-tjenestesider'),
             'options' => array(
+                'fylke_source' => array(
+                    'type' => 'select',
+                    'heading' => __('Fylkefelt', 'lokale-tjenestesider'),
+                    'default' => 'employee:fylke',
+                    'full_width' => true,
+                    'options' => self::fylke_sources(),
+                ),
                 'columns' => self::people_select(__('Kolonner', 'lokale-tjenestesider'), '4', array(
                     '1' => '1',
                     '2' => '2',
