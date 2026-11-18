@@ -342,11 +342,18 @@ class LTS_Rewrite
         }
 
         $public = LTS_Repository::service_is_public($tjeneste);
-        $page = ($base !== '' && !$public) ? self::published_page($tjeneste->post_name) : null;
+        if ($public) {
+            $crumbs[] = self::crumb(get_the_title($tjeneste), self::service_url($tjeneste->post_name));
+
+            return $crumbs;
+        }
+
+        $page = $base !== '' ? self::published_page($base . '/' . $tjeneste->post_name) : null;
+        if (!$page instanceof WP_Post) {
+            $page = self::published_page($tjeneste->post_name);
+        }
         if ($page instanceof WP_Post) {
             $crumbs[] = self::crumb(get_the_title($page), (string) get_permalink($page));
-        } elseif ($public) {
-            $crumbs[] = self::crumb(get_the_title($tjeneste), self::service_url($tjeneste->post_name));
         } else {
             $crumbs[] = self::crumb(get_the_title($tjeneste), '');
         }
