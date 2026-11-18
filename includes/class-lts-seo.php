@@ -10,6 +10,7 @@ class LTS_Seo
     {
         add_filter('document_title_parts', array(__CLASS__, 'title_parts'));
         add_action('wp_head', array(__CLASS__, 'meta_description'), 1);
+        add_action('wp_head', array(__CLASS__, 'social_image'), 1);
         add_action('wp_head', array(__CLASS__, 'canonical'), 1);
         add_action('wp_sitemaps_init', array(__CLASS__, 'sitemap'));
         add_filter('wpseo_canonical', array(__CLASS__, 'filter_canonical'));
@@ -23,6 +24,7 @@ class LTS_Seo
         add_filter('wpseo_opengraph_title', array(__CLASS__, 'yoast_title'));
         add_filter('wpseo_opengraph_desc', array(__CLASS__, 'yoast_description'));
         add_filter('wpseo_opengraph_url', array(__CLASS__, 'filter_canonical'));
+        add_filter('wpseo_add_opengraph_images', array(__CLASS__, 'yoast_image'));
         add_filter('wpseo_twitter_title', array(__CLASS__, 'yoast_title'));
         add_filter('wpseo_twitter_description', array(__CLASS__, 'yoast_description'));
         add_filter('wpseo_sitemap_exclude_post_type', array(__CLASS__, 'exclude_post_type'), 10, 2);
@@ -63,6 +65,97 @@ class LTS_Seo
         }
 
         echo '<meta name="description" content="' . esc_attr($seo['description']) . '">' . "\n";
+    }
+
+    public static function social_image(): void
+    {
+        if (self::yoast_active()) {
+            return;
+        }
+
+        $image = self::share_image();
+        if ($image['url'] === '') {
+            return;
+        }
+
+        echo '<meta property="og:image" content="' . esc_url($image['url']) . '">' . "\n";
+        if ($image['width'] > 0 && $image['height'] > 0) {
+            echo '<meta property="og:image:width" content="' . esc_attr((string) $image['width']) . '">' . "\n";
+            echo '<meta property="og:image:height" content="' . esc_attr((string) $image['height']) . '">' . "\n";
+        }
+        echo '<meta name="twitter:card" content="summary_large_image">' . "\n";
+        echo '<meta name="twitter:image" content="' . esc_url($image['url']) . '">' . "\n";
+    }
+
+    /**
+     * @param mixed $images
+     * @return mixed
+     */
+    public static function yoast_image($images)
+    {
+        if (!is_object($images) || !method_exists($images, 'add_image_by_url')) {
+            return $images;
+        }
+
+        $image = self::share_image();
+        if ($image['url'] === '') {
+            return $images;
+        }
+
+        $images->add_image_by_url($image['url']);
+
+        return $images;
+    }
+
+    /**
+     * @return array{url: string, width: int, height: int}
+     */
+    private static function share_image(): array
+    {
+        $empty = array(
+            'url' => '',
+            'width' => 0,
+            'height' => 0,
+        );
+        if (self::public_seo() === null) {
+            return $empty;
+        }
+
+        $context = LTS_Context::get();
+        $kommune = is_array($context) && isset($context['kommune']) && $context['kommune'] instanceof WP_Post
+            ? $context['kommune']
+            : null;
+        if (!$kommune instanceof WP_Post) {
+            return $empty;
+        }
+
+        $image_id = (int) get_post_thumbnail_id($kommune);
+        if ($image_id < 1 && isset($context['fylke']) && $context['fylke'] instanceof WP_Post) {
+            $image_id = (int) get_post_thumbnail_id($context['fylke']);
+        }
+        $attachment = $image_id > 0 ? get_post($image_id) : null;
+        if (!$attachment instanceof WP_Post || $attachment->post_type !== 'attachment') {
+            return $empty;
+        }
+
+        $url = (string) wp_get_attachment_image_url($image_id, 'full');
+        if ($url === '') {
+            return $empty;
+        }
+
+        $width = 0;
+        $height = 0;
+        $meta = wp_get_attachment_metadata($image_id);
+        if (is_array($meta)) {
+            $width = isset($meta['width']) ? (int) $meta['width'] : 0;
+            $height = isset($meta['height']) ? (int) $meta['height'] : 0;
+        }
+
+        return array(
+            'url' => $url,
+            'width' => $width,
+            'height' => $height,
+        );
     }
 
     public static function canonical(): void
